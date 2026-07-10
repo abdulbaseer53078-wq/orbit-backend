@@ -1,5 +1,5 @@
 // ========================================
-// ORBIT - COMPLETE BACKEND WITH AUTH
+// ORBIT - COMPLETE BACKEND
 // ========================================
 
 console.log('🌍 Orbit Backend Starting...');
@@ -58,13 +58,29 @@ function formatCurrency(amount, currency) {
 }
 
 // ========================================
-// 1. REGISTER USER (With Password Hashing)
+// API ROUTES (API ROUTES FIRST!)
 // ========================================
+
+// 1. HEALTH CHECK
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        service: 'Orbit Payments',
+        version: '3.0.0',
+        feeRate: '0.3%',
+        timestamp: new Date().toISOString(),
+        stats: {
+            totalUsers: Object.keys(users).length,
+            totalTransactions: transactions.length
+        }
+    });
+});
+
+// 2. REGISTER USER
 app.post('/api/register', async (req, res) => {
     try {
         const { username, name, email, phone, password } = req.body;
 
-        // Validate username
         if (!username || !username.match(/^[a-zA-Z0-9_]{3,20}$/)) {
             return res.status(400).json({
                 success: false,
@@ -72,7 +88,6 @@ app.post('/api/register', async (req, res) => {
             });
         }
 
-        // Check if user exists
         if (users[username]) {
             return res.status(400).json({
                 success: false,
@@ -80,16 +95,13 @@ app.post('/api/register', async (req, res) => {
             });
         }
 
-        // Hash password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Generate Stellar keypair
         const keypair = StellarSdk.Keypair.random();
         const response = await fetch(`https://friendbot.stellar.org?addr=${keypair.publicKey()}`);
         if (!response.ok) throw new Error('Failed to fund account');
 
-        // Save user
         users[username] = {
             publicKey: keypair.publicKey(),
             secretKey: keypair.secret(),
@@ -102,7 +114,6 @@ app.post('/api/register', async (req, res) => {
             createdAt: new Date().toISOString()
         };
 
-        // Generate JWT token
         const token = generateToken(username, username);
 
         console.log(`✅ User registered: @${username}`);
@@ -131,9 +142,7 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-// ========================================
-// 2. LOGIN USER
-// ========================================
+// 3. LOGIN
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -145,7 +154,6 @@ app.post('/api/login', async (req, res) => {
             });
         }
 
-        // Find user
         const user = users[username];
         if (!user) {
             return res.status(401).json({
@@ -154,7 +162,6 @@ app.post('/api/login', async (req, res) => {
             });
         }
 
-        // Verify password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(401).json({
@@ -163,7 +170,6 @@ app.post('/api/login', async (req, res) => {
             });
         }
 
-        // Generate JWT token
         const token = generateToken(username, username);
 
         res.json({
@@ -190,14 +196,11 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// ========================================
-// 3. GET USER INFO (Protected)
-// ========================================
+// 4. GET USER INFO (Protected)
 app.get('/api/user/:username', verifyToken, (req, res) => {
     const { username } = req.params;
     const cleanUsername = username.replace('@', '');
 
-    // Check if requesting own data
     if (cleanUsername !== req.user.username) {
         return res.status(403).json({
             success: false,
@@ -245,16 +248,13 @@ app.get('/api/user/:username', verifyToken, (req, res) => {
     });
 });
 
-// ========================================
-// 4. SEND MONEY (Protected)
-// ========================================
+// 5. SEND MONEY (Protected)
 app.post('/api/send', verifyToken, async (req, res) => {
     try {
         const { toUsername, amount } = req.body;
         const from = req.user.username;
         const to = toUsername.replace('@', '');
 
-        // Validation
         if (!to || !amount) {
             return res.status(400).json({
                 success: false,
@@ -280,7 +280,6 @@ app.post('/api/send', verifyToken, async (req, res) => {
             });
         }
 
-        // Calculate fee (0.3%)
         const feeRate = 0.003;
         const fee = amount * feeRate;
         const totalDeduct = amount + fee;
@@ -292,7 +291,6 @@ app.post('/api/send', verifyToken, async (req, res) => {
             });
         }
 
-        // Process on Stellar
         const senderAccount = await server.loadAccount(users[from].publicKey);
         const transaction = new StellarSdk.TransactionBuilder(senderAccount, {
             fee: StellarSdk.BASE_FEE,
@@ -312,11 +310,9 @@ app.post('/api/send', verifyToken, async (req, res) => {
         transaction.sign(senderKeypair);
         const result = await server.submitTransaction(transaction);
 
-        // Update balances
         users[from].balance -= totalDeduct;
         users[to].balance += amount;
 
-        // Record transaction
         const txRecord = {
             id: result.hash,
             from: `@${from}`,
@@ -367,9 +363,7 @@ app.post('/api/send', verifyToken, async (req, res) => {
     }
 });
 
-// ========================================
-// 5. GET TRANSACTION HISTORY (Protected)
-// ========================================
+// 6. GET TRANSACTION HISTORY (Protected)
 app.get('/api/transactions/:username', verifyToken, (req, res) => {
     const { username } = req.params;
     const cleanUsername = username.replace('@', '');
@@ -400,9 +394,7 @@ app.get('/api/transactions/:username', verifyToken, (req, res) => {
     });
 });
 
-// ========================================
-// 6. GET BALANCE (Protected)
-// ========================================
+// 7. GET BALANCE (Protected)
 app.get('/api/balance', verifyToken, (req, res) => {
     const username = req.user.username;
     const user = users[username];
@@ -429,13 +421,9 @@ app.get('/api/balance', verifyToken, (req, res) => {
     });
 });
 
-// ========================================
-// 7. GET ALL USERS (Admin only - Protected)
-// ========================================
+// 8. GET ALL USERS (Admin only, Protected)
 app.get('/api/users', verifyToken, (req, res) => {
-    // Simple admin check - only user 'admin' can access
     if (req.user.username !== 'admin') {
-        // Return only basic info for non-admin
         const userList = Object.keys(users).map(username => ({
             username: `@${username}`,
             name: users[username].name,
@@ -451,7 +439,6 @@ app.get('/api/users', verifyToken, (req, res) => {
         });
     }
 
-    // Admin gets full details
     const userList = Object.keys(users).map(username => ({
         username: `@${username}`,
         publicKey: users[username].publicKey,
@@ -473,9 +460,7 @@ app.get('/api/users', verifyToken, (req, res) => {
     });
 });
 
-// ========================================
-// 8. GET EXCHANGE RATES (Public)
-// ========================================
+// 9. GET EXCHANGE RATES (Public)
 app.get('/api/rates', (req, res) => {
     res.json({
         success: true,
@@ -489,9 +474,7 @@ app.get('/api/rates', (req, res) => {
     });
 });
 
-// ========================================
-// 9. PAYMENT SUMMARY (Protected)
-// ========================================
+// 10. PAYMENT SUMMARY (Protected)
 app.get('/api/payments/summary', verifyToken, (req, res) => {
     const totalUsers = Object.keys(users).length;
     const totalTransactions = transactions.length;
@@ -527,24 +510,7 @@ app.get('/api/payments/summary', verifyToken, (req, res) => {
 });
 
 // ========================================
-// 10. HEALTH CHECK (Public)
-// ========================================
-app.get('/api/health', (req, res) => {
-    res.json({
-        status: 'ok',
-        service: 'Orbit Payments',
-        version: '3.0.0',
-        feeRate: '0.3%',
-        timestamp: new Date().toISOString(),
-        stats: {
-            totalUsers: Object.keys(users).length,
-            totalTransactions: transactions.length
-        }
-    });
-});
-
-// ========================================
-// 11. ROOT ROUTE
+// ROOT ROUTE (MUST COME LAST)
 // ========================================
 app.get('/', (req, res) => {
     res.json({

@@ -1,17 +1,12 @@
-// ========================================
-// ORBIT - JWT AUTH MIDDLEWARE
-// ========================================
-
 const jwt = require('jsonwebtoken');
 
-// Verify JWT Token
 const verifyToken = (req, res, next) => {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
     if (!token) {
-        return res.status(401).json({ 
-            success: false, 
-            error: 'Access denied. No token provided.' 
+        return res.status(401).json({
+            success: false,
+            error: 'Access denied. No token provided.'
         });
     }
 
@@ -20,14 +15,13 @@ const verifyToken = (req, res, next) => {
         req.user = decoded;
         next();
     } catch (error) {
-        return res.status(401).json({ 
-            success: false, 
-            error: 'Invalid or expired token.' 
+        return res.status(401).json({
+            success: false,
+            error: 'Invalid or expired token.'
         });
     }
 };
 
-// Generate JWT Token
 const generateToken = (userId, username) => {
     return jwt.sign(
         { userId, username },

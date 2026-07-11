@@ -1,7 +1,7 @@
 {
   "name": "orbit-backend",
-  "version": "1.0.0",
-  "description": "Orbit - Cross-Border Payments & Travel",
+  "version": "3.0.0",
+  "description": "Orbit - Cross-Border Payments API",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -9,20 +9,14 @@
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^12.0.0",
-    "axios": "^1.18.1",
+    "axios": "^1.7.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
+    "dotenv": "^16.4.0",
+    "express": "^4.19.0",
     "jsonwebtoken": "^9.0.0",
-    "mongoose": "^8.24.1"
-  },
-  "keywords": [
-    "orbit",
-    "payments",
-    "cross-border",
-    "travel"
-  ],
-  "author": "Orbit",
-  "license": "ISC"
+    "mongoose": "^8.0.0",
+    "nodemailer": "^6.9.0",
+    "twilio": "^5.0.0"
+  }
 }
